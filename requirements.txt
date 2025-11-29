@@ -1,2 +1,2 @@
 flask>=2.3
-pyembroidery>=1.4
+pyembroidery>=1.5
