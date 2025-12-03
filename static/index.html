@@ -263,7 +263,7 @@
     let pesUrl = null;
     let lastSvg = null;
 
-    const sample = `# Octagon plus inner square (use Tab for indent)\nfor i in range(8):\n\tforward(80)\n\tleft(45)\n\npenup()\ngoto(25, 25)\npendown()\nfor i in range(4):\n\tforward(40)\n\tleft(90)`;
+    const sample = `# Simple pentagon\nfor i in range(5):\n\tforward(80)\n\tright(72)`;
     scriptArea.value = sample;
 
     // Tab + auto-indent support (4 spaces, Python-style)
