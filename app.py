@@ -1,17 +1,36 @@
+import base64
+import os
 import tempfile
 from flask import Flask, jsonify, render_template_string, request
+from pyembroidery import write_pes, write_svg
 
 from embroider_class import TurtleEmbroidery
 
 
 def render_svg(pattern) -> str:
     """Return SVG data for the given pattern as a UTF-8 string."""
-    with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tmp:
-        pattern.save(tmp.name, {"svg": None})
-        tmp.flush()
-        tmp.seek(0)
-        svg_bytes = tmp.read()
-    return svg_bytes.decode("utf-8")
+    fd, path = tempfile.mkstemp(suffix=".svg")
+    os.close(fd)
+    try:
+        write_svg(pattern, path)
+        with open(path, "r", encoding="utf-8") as handle:
+            return handle.read()
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
+def render_pes_bytes(pattern) -> bytes:
+    """Return PES bytes for download."""
+    fd, path = tempfile.mkstemp(suffix=".pes")
+    os.close(fd)
+    try:
+        write_pes(pattern, path)
+        with open(path, "rb") as handle:
+            return handle.read()
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
 
 
 app = Flask(__name__)
@@ -26,13 +45,19 @@ TEMPLATE = """
   <title>Turtle Embroidery Playground</title>
   <style>
     :root {
-      color-scheme: light dark;
+      color-scheme: light;
+      --ink: #0f172a;
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --accent: #1f6feb;
+      --accent-2: #f59e0b;
     }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       margin: 0;
       padding: 1rem;
-      background: #f6f7fb;
+      background: radial-gradient(circle at 10% 20%, rgba(31,111,235,0.08), transparent 25%), var(--bg);
+      color: var(--ink);
     }
     h1 {
       margin-top: 0;
@@ -43,6 +68,13 @@ TEMPLATE = """
       gap: 1rem;
       align-items: stretch;
     }
+    .panel {
+      background: var(--panel);
+      border-radius: 0.75rem;
+      padding: 0.9rem;
+      border: 1px solid #d8e0ec;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
     textarea {
       width: 100%;
       min-height: 320px;
@@ -51,7 +83,7 @@ TEMPLATE = """
       padding: 0.75rem;
       border-radius: 0.5rem;
       border: 1px solid #cbd5e1;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
       background: #ffffff;
       resize: vertical;
       tab-size: 4;
@@ -59,11 +91,18 @@ TEMPLATE = """
       outline: none;
     }
     textarea:focus {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.18);
     }
-    button {
-      background: #6366f1;
+    .controls {
+      margin-top: 0.5rem;
+      display:flex;
+      gap:0.5rem;
+      align-items:center;
+      flex-wrap: wrap;
+    }
+    button, .ghost {
+      background: var(--accent);
       border: none;
       color: white;
       padding: 0.6rem 1rem;
@@ -71,17 +110,23 @@ TEMPLATE = """
       font-weight: 600;
       cursor: pointer;
       box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
-      transition: transform 120ms ease, box-shadow 120ms ease;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, color 120ms ease;
+      text-decoration: none;
     }
-    button:hover {
+    button:hover, .ghost:hover {
       transform: translateY(-1px);
-      box-shadow: 0 8px 26px rgba(99, 102, 241, 0.45);
+      box-shadow: 0 8px 26px rgba(31, 111, 235, 0.32);
     }
-    button:disabled {
+    button:disabled, .ghost[aria-disabled=\"true\"] {
       opacity: 0.6;
       cursor: wait;
       transform: none;
       box-shadow: none;
+      pointer-events: none;
+    }
+    .ghost {
+      background: #0f172a;
+      color: #f8fafc;
     }
     .output {
       background: #ffffff;
@@ -100,8 +145,8 @@ TEMPLATE = """
       align-items: center;
     }
     .badge {
-      background: #e0f2fe;
-      color: #0369a1;
+      background: #eef2ff;
+      color: #4338ca;
       padding: 0.35rem 0.6rem;
       border-radius: 999px;
       font-size: 12px;
@@ -114,6 +159,7 @@ TEMPLATE = """
       color: #0f172a;
       font-weight: 600;
     }
+    .status small { color: #64748b; font-weight: 400; }
     .error {
       color: #b91c1c;
       white-space: pre-wrap;
@@ -143,19 +189,23 @@ TEMPLATE = """
 </head>
 <body>
   <h1>Turtle Embroidery Playground</h1>
-  <p>Write Python turtle commands (forward, left, penup, goto, for loops) to generate embroidery stitches.</p>
+  <p>Write Python turtle-style commands (<code>forward</code>, <code>left</code>, <code>penup</code>, <code>goto</code>, loops) to generate stitches. We render an SVG preview and package it into a PES file for download.</p>
   <div class="app">
-    <div>
+    <div class="panel">
       <textarea id="editor" spellcheck="false"></textarea>
-      <div style="margin-top: 0.5rem; display:flex; gap:0.5rem; align-items:center;">
+      <div class="controls">
         <button id="run">Run pattern</button>
+        <a id="download" class="ghost" href="#" download="pattern.pes" hidden>Download PES</a>
         <span class="status" id="status"></span>
+      </div>
+      <div style="margin-top:0.4rem; color:#475569; font-size: 14px;">
+        Tips: use <code>penup()</code> before jumps, keep shapes inside a ~100x100 box, and try lowering <code>step</code> in <code>TurtleEmbroidery</code> if you need denser stitches.
       </div>
     </div>
     <div class="output">
       <div class="output-header">
         <span class="badge">Preview</span>
-        <small>Uses default green thread; outputs SVG</small>
+        <small>Default green thread; SVG + PES</small>
       </div>
       <div id="preview-wrapper">
         <div id="preview">Run to see your stitches</div>
@@ -169,6 +219,8 @@ TEMPLATE = """
     const statusEl = document.getElementById('status');
     const errorEl = document.getElementById('error');
     const preview = document.getElementById('preview');
+    const downloadBtn = document.getElementById('download');
+    let pesUrl = null;
 
     const starter = `# Tabs are allowed. Press Enter after a ':' to auto-indent.\nfor i in range(24):\n\tforward(120)\n\tleft(150)\n\tforward(60)\n\tleft(10)\n\npenup()\nleft(90)\nforward(40)\npendown()\nfor i in range(36):\n\tforward(80)\n\tleft(170)`;
     editor.value = starter;
@@ -197,11 +249,21 @@ TEMPLATE = """
       }
     });
 
+    function revokePesUrl() {
+      if (pesUrl) {
+        URL.revokeObjectURL(pesUrl);
+        pesUrl = null;
+      }
+    }
+
     async function runPattern() {
       runBtn.disabled = true;
+      downloadBtn.setAttribute('aria-disabled', 'true');
       statusEl.textContent = 'Running…';
       errorEl.textContent = '';
       preview.textContent = 'Rendering…';
+      downloadBtn.hidden = true;
+      revokePesUrl();
       try {
         const response = await fetch('/run', {
           method: 'POST',
@@ -215,6 +277,18 @@ TEMPLATE = """
         } else {
           preview.innerHTML = data.svg;
           statusEl.textContent = 'Rendered ' + data.point_count + ' points';
+          if (data.pes_base64) {
+            const binary = atob(data.pes_base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i += 1) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            pesUrl = URL.createObjectURL(blob);
+            downloadBtn.href = pesUrl;
+            downloadBtn.download = data.pes_filename || 'turtle_pattern.pes';
+            downloadBtn.hidden = false;
+            downloadBtn.removeAttribute('aria-disabled');
+          }
         }
       } catch (err) {
         preview.textContent = 'Network error';
@@ -265,11 +339,16 @@ def run_code():
 
     pattern = t.finish()
     svg_content = render_svg(pattern)
+    pes_bytes = render_pes_bytes(pattern)
+    pes_base64 = base64.b64encode(pes_bytes).decode("ascii")
     return jsonify({
         "svg": svg_content,
+        "pes_base64": pes_base64,
+        "pes_filename": "turtle_pattern.pes",
         "point_count": len(t.points),
     })
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.getenv("PORT", "5001"))
+    app.run(debug=True, host="0.0.0.0", port=port)

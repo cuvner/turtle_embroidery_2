@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Turtle Embroidery Workbench</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --ink: #0f172a;
+      --panel: #ffffff;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-2: #ef4444;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+      font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 10% 20%, rgba(37,99,235,0.08), transparent 25%), var(--bg);
+      color: var(--ink);
+      padding: 1rem;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    h1 { margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.2fr) minmax(340px, 1fr);
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #d6deec;
+      border-radius: 0.9rem;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+    }
+    textarea {
+      width: 100%;
+      min-height: 320px;
+      font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+      font-size: 14px;
+      border-radius: 0.7rem;
+      border: 1px solid #cbd5e1;
+      padding: 0.85rem;
+      background: #fff;
+      resize: vertical;
+      outline: none;
+      tab-size: 4;
+      white-space: pre;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.6rem;
+      align-items: center;
+    }
+    button, a.buttonish {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.65rem 1rem;
+      border-radius: 0.6rem;
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 10px 26px rgba(37, 99, 235, 0.35);
+      transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+    }
+    button:hover, a.buttonish:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(37, 99, 235, 0.42); }
+    button:disabled, a.buttonish[aria-disabled="true"] { opacity: 0.6; cursor: wait; transform: none; box-shadow: none; pointer-events: none; }
+    .ghost { background: #0f172a; box-shadow: 0 10px 26px rgba(15, 23, 42, 0.25); }
+    .field-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    label { font-size: 13px; color: var(--muted); }
+    input[type="number"], input[type="text"] {
+      padding: 0.4rem 0.55rem;
+      border-radius: 0.4rem;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+      min-width: 120px;
+    }
+    .preview {
+      background: #fff;
+      border: 1px dashed #cbd5e1;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview svg { max-width: 100%; max-height: 100%; }
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4338ca;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .status { color: var(--muted); font-weight: 600; min-height: 1.2em; }
+    .error { color: var(--accent-2); white-space: pre-wrap; }
+    .download { display: flex; align-items: center; gap: 0.5rem; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      z-index: 10;
+      padding: 1rem;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #0b1220;
+      color: #e5e7eb;
+      border-radius: 1rem;
+      padding: 1rem;
+      width: min(900px, 96vw);
+      box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; }
+    .modal-preview {
+      background: #111827;
+      border-radius: 0.8rem;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 1rem;
+      margin-top: 0.5rem;
+      display: grid;
+      place-items: center;
+      min-height: 360px;
+    }
+    .modal-preview svg { max-width: 100%; max-height: 100%; }
+    .pill {
+      background: rgba(99, 102, 241, 0.15);
+      color: #c7d2fe;
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="badge">Embroidery</div>
+      <h1>Turtle Embroidery Workbench</h1>
+      <p style="color: var(--muted); max-width: 760px;">Author scripts in a Python-like mini DSL (for/ range, function calls), send them to the FastAPI backend, preview the stitched SVG, and download a PES file.</p>
+    </div>
+    <div class="pill">Exports: SVG + PES</div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <label for="script">Script (Python-ish: `for i in range(4):` and commands like `forward(40)`, `penup()`, `goto(10, 20)`. Tab inserts indent; Enter after `:` auto-indents.)</label>
+      <textarea id="script" spellcheck="false"></textarea>
+      <div class="field-row">
+        <label>Step (max stitch length) <input type="number" id="step" value="1.5" min="0.1" max="10" step="0.1" /></label>
+        <label>Colour <input type="text" id="color" value="#00aa55" /></label>
+      </div>
+      <div class="controls">
+        <button id="preview-btn">Export + Preview</button>
+        <button id="replay-btn" class="ghost" disabled>Replay animation</button>
+        <a id="download-link" class="buttonish ghost" href="#" download="pattern.pes" aria-disabled="true">Download PES</a>
+        <span class="status" id="status"></span>
+      </div>
+      <div class="error" id="error"></div>
+    </section>
+
+    <section class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+        <div class="badge">Preview</div>
+        <small id="meta" style="color: var(--muted);">Awaiting export…</small>
+      </div>
+      <div class="preview" id="preview">Run an export to see stitches</div>
+    </section>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span class="pill">Replay</span>
+          <strong>Animated stitch preview</strong>
+        </div>
+        <button id="close-modal" class="ghost">Close</button>
+      </div>
+      <div class="modal-preview" id="modal-preview"></div>
+    </div>
+  </div>
+
+  <script>
+    const scriptArea = document.getElementById('script');
+    const previewBtn = document.getElementById('preview-btn');
+    const replayBtn = document.getElementById('replay-btn');
+    const downloadLink = document.getElementById('download-link');
+    const statusEl = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+    const preview = document.getElementById('preview');
+    const meta = document.getElementById('meta');
+    const stepInput = document.getElementById('step');
+    const colorInput = document.getElementById('color');
+    const modal = document.getElementById('modal');
+    const modalPreview = document.getElementById('modal-preview');
+    const closeModalBtn = document.getElementById('close-modal');
+
+    let pesUrl = null;
+    let lastSvg = null;
+
+    const sample = `# Octagon plus inner square (use Tab for indent)\nfor i in range(8):\n\tforward(80)\n\tleft(45)\n\npenup()\ngoto(25, 25)\npendown()\nfor i in range(4):\n\tforward(40)\n\tleft(90)`;
+    scriptArea.value = sample;
+
+    // Tab + auto-indent support
+    scriptArea.addEventListener('keydown', (event) => {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        const { selectionStart, selectionEnd, value } = scriptArea;
+        scriptArea.value = value.slice(0, selectionStart) + '  ' + value.slice(selectionEnd);
+        scriptArea.selectionStart = scriptArea.selectionEnd = selectionStart + 2;
+      } else if (event.key === 'Enter') {
+        const { selectionStart, selectionEnd, value } = scriptArea;
+        const before = value.slice(0, selectionStart);
+        const currentLineStart = before.lastIndexOf('\\n') + 1;
+        const currentLine = before.slice(currentLineStart);
+        const indent = currentLine.match(/^\\s*/)[0];
+        const needsExtra = currentLine.trim().endsWith(':');
+        const insertion = '\\n' + indent + (needsExtra ? '  ' : '');
+        event.preventDefault();
+        scriptArea.value = before + insertion + value.slice(selectionEnd);
+        const pos = before.length + insertion.length;
+        scriptArea.selectionStart = scriptArea.selectionEnd = pos;
+      }
+    });
+
+    function clearPesUrl() {
+      if (pesUrl) {
+        URL.revokeObjectURL(pesUrl);
+        pesUrl = null;
+      }
+    }
+
+    function setStatus(msg) { statusEl.textContent = msg || ''; }
+    function setError(msg) { errorEl.textContent = msg || ''; }
+
+    function base64ToBlob(b64) {
+      const binary = atob(b64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: 'application/octet-stream' });
+    }
+
+    function animateSvg(container) {
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+      const targets = svg.querySelectorAll('path, line, polyline, polygon');
+      targets.forEach((el, idx) => {
+        try {
+          const len = el.getTotalLength();
+          el.style.strokeDasharray = len;
+          el.style.strokeDashoffset = len;
+          el.style.animation = `draw 2.5s ease ${(idx * 120) / 1000}s forwards`;
+          el.style.stroke = el.style.stroke || '#00aa55';
+          el.style.fill = 'none';
+          el.style.strokeWidth = el.style.strokeWidth || 1.2;
+        } catch (e) {
+          // ignore non-animatable elements
+        }
+      });
+    }
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `@keyframes draw { to { stroke-dashoffset: 0; } }`;
+    document.head.appendChild(styleEl);
+
+    async function runExport(showModal = false) {
+      previewBtn.disabled = true;
+      replayBtn.disabled = true;
+      downloadLink.setAttribute('aria-disabled', 'true');
+      clearPesUrl();
+      setError('');
+      setStatus('Exporting…');
+      preview.textContent = 'Rendering…';
+      meta.textContent = 'Working…';
+      lastSvg = null;
+      const payload = {
+        script: scriptArea.value,
+        step: Number(stepInput.value) || 1.5,
+        color: colorInput.value || '#00aa55',
+      };
+      try {
+        const res = await fetch('/export_script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Export failed');
+        lastSvg = data.svg;
+        preview.innerHTML = data.svg;
+        meta.textContent = `Points: ${data.point_count}`;
+        setStatus('Ready');
+
+        if (data.pes_base64) {
+          const blob = base64ToBlob(data.pes_base64);
+          pesUrl = URL.createObjectURL(blob);
+          downloadLink.href = pesUrl;
+          downloadLink.download = data.pes_filename || 'pattern.pes';
+          downloadLink.removeAttribute('aria-disabled');
+        }
+        replayBtn.disabled = false;
+        if (showModal) openModal();
+      } catch (err) {
+        setError(err);
+        preview.textContent = 'Error';
+        meta.textContent = 'Error';
+      } finally {
+        previewBtn.disabled = false;
+      }
+    }
+
+    function openModal() {
+      if (!lastSvg) return;
+      modalPreview.innerHTML = lastSvg;
+      animateSvg(modalPreview);
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+      modalPreview.innerHTML = '';
+    }
+
+    previewBtn.addEventListener('click', () => runExport(false));
+    replayBtn.addEventListener('click', () => runExport(true));
+    closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  </script>
+</body>
+</html>
