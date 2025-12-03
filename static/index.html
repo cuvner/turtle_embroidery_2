@@ -31,10 +31,11 @@
     }
     h1 {
       margin: 0;
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-weight: 800;
+      font-size: clamp(2.4rem, 4vw, 3rem);
+      letter-spacing: -0.03em;
       color: #0b1220;
-      text-shadow: 0 2px 10px rgba(255,255,255,0.6);
+      text-shadow: 0 2px 10px rgba(255,255,255,0.65);
     }
     main {
       display: grid;
@@ -194,10 +195,10 @@
 </head>
 <body>
   <header>
-    <div>
+    <div style="background: rgba(255,255,255,0.92); border-radius: 0.75rem; padding: 0.75rem 1rem;">
       <div class="badge">Embroidery</div>
       <h1>Turtle Embroidery Workbench</h1>
-      <p style="color: var(--muted); max-width: 760px;">Author scripts in a Python-like mini DSL (for/ range, function calls), send them to the FastAPI backend, preview the stitched SVG, and download a PES file.</p>
+      <p style="color: #0b1220; max-width: 760px;">Write turtle-style code and see it become stitches. This web app makes programming tangible: draft motions with `forward()`, turns, and loops, then preview the embroidery path and download a PES file for your machine.</p>
     </div>
     <div class="pill">Exports: SVG + PES</div>
   </header>
