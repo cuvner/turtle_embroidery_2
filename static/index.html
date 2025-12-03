@@ -18,7 +18,7 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: radial-gradient(circle at 10% 20%, rgba(37,99,235,0.08), transparent 25%), var(--bg);
+      background: url('/images/turtle_embroider.png') center/cover no-repeat fixed;
       color: var(--ink);
       padding: 1rem;
     }
@@ -37,11 +37,12 @@
       margin-top: 1rem;
     }
     .panel {
-      background: var(--panel);
+      background: rgba(255, 255, 255, 0.5);
       border: 1px solid #d6deec;
       border-radius: 0.9rem;
       padding: 1rem;
       box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
     }
     textarea {
       width: 100%;
@@ -51,7 +52,7 @@
       border-radius: 0.7rem;
       border: 1px solid #cbd5e1;
       padding: 0.85rem;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.5);
       resize: vertical;
       outline: none;
       tab-size: 4;
@@ -97,7 +98,7 @@
       min-width: 120px;
     }
     .preview {
-      background: #fff;
+      background: rgba(255, 255, 255, 0.5);
       border: 1px dashed #cbd5e1;
       border-radius: 0.75rem;
       padding: 0.75rem;
