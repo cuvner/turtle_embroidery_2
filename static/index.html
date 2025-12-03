@@ -197,7 +197,7 @@
 
   <main>
     <section class="panel">
-      <label for="script">Script (Python-ish: `for i in range(4):` and commands like `forward(40)`, `penup()`, `goto(10, 20)`. Tab inserts indent; Enter after `:` auto-indents.)</label>
+      <label for="script">Script (Python-ish: `for i in range(4):` and commands like `forward(40)`, `penup()`, `goto(10, 20)`. Tab inserts 4 spaces; Enter after `:` auto-indents.)</label>
       <textarea id="script" spellcheck="false"></textarea>
       <div class="field-row">
         <label>Step (max stitch length) <input type="number" id="step" value="1.5" min="0.1" max="10" step="0.1" /></label>
@@ -258,21 +258,22 @@
     const sample = `# Octagon plus inner square (use Tab for indent)\nfor i in range(8):\n\tforward(80)\n\tleft(45)\n\npenup()\ngoto(25, 25)\npendown()\nfor i in range(4):\n\tforward(40)\n\tleft(90)`;
     scriptArea.value = sample;
 
-    // Tab + auto-indent support
+    // Tab + auto-indent support (4 spaces, Python-style)
+    const indentUnit = "    ";
     scriptArea.addEventListener('keydown', (event) => {
       if (event.key === 'Tab') {
         event.preventDefault();
         const { selectionStart, selectionEnd, value } = scriptArea;
-        scriptArea.value = value.slice(0, selectionStart) + '  ' + value.slice(selectionEnd);
-        scriptArea.selectionStart = scriptArea.selectionEnd = selectionStart + 2;
+        scriptArea.value = value.slice(0, selectionStart) + indentUnit + value.slice(selectionEnd);
+        scriptArea.selectionStart = scriptArea.selectionEnd = selectionStart + indentUnit.length;
       } else if (event.key === 'Enter') {
         const { selectionStart, selectionEnd, value } = scriptArea;
         const before = value.slice(0, selectionStart);
-        const currentLineStart = before.lastIndexOf('\\n') + 1;
+        const currentLineStart = before.lastIndexOf('\n') + 1;
         const currentLine = before.slice(currentLineStart);
-        const indent = currentLine.match(/^\\s*/)[0];
-        const needsExtra = currentLine.trim().endsWith(':');
-        const insertion = '\\n' + indent + (needsExtra ? '  ' : '');
+        const indent = currentLine.match(/^\s*/)[0];
+        const needsExtra = /:\s*(#.*)?$/.test(currentLine.trimEnd());
+        const insertion = '\n' + indent + (needsExtra ? indentUnit : '');
         event.preventDefault();
         scriptArea.value = before + insertion + value.slice(selectionEnd);
         const pos = before.length + insertion.length;
