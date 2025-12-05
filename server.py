@@ -13,6 +13,10 @@ from pyembroidery import write_pes, write_svg
 from embroider_class import TurtleEmbroidery
 
 
+# indentation used by the tiny DSL (matches the web editor: 4 spaces)
+INDENT_WIDTH = 4
+
+
 # ---------- Pydantic models ----------
 
 
@@ -187,7 +191,8 @@ def _parse_script_block(lines: List[str], start: int, indent: int) -> Tuple[List
         if not raw.strip() or raw.strip().startswith("#"):
             i += 1
             continue
-        leading_spaces = len(raw) - len(raw.lstrip(" "))
+        expanded = raw.expandtabs(INDENT_WIDTH)
+        leading_spaces = len(expanded) - len(expanded.lstrip(" "))
         if leading_spaces < indent:
             break
         if leading_spaces > indent:
@@ -199,7 +204,7 @@ def _parse_script_block(lines: List[str], start: int, indent: int) -> Tuple[List
         if for_match:
             count = int(for_match.group(1))
             block_start = i + 1
-            block_indent = indent + 2
+            block_indent = indent + INDENT_WIDTH
             block_commands, consumed = _parse_script_block(lines, block_start, block_indent)
             for _ in range(count):
                 commands.extend(block_commands)
@@ -214,7 +219,7 @@ def _parse_script_block(lines: List[str], start: int, indent: int) -> Tuple[List
 
 def parse_script(script: str) -> List[Command]:
     """Turn the tiny DSL into a validated command list."""
-    normalized = script.replace("\t", "  ").splitlines()
+    normalized = script.expandtabs(INDENT_WIDTH).splitlines()
     commands, consumed = _parse_script_block(normalized, 0, 0)
     if consumed < len(normalized):
         # extra dedent handled by parser, no-op

@@ -222,7 +222,8 @@ TEMPLATE = """
     const downloadBtn = document.getElementById('download');
     let pesUrl = null;
 
-    const starter = `# Tabs are allowed. Press Enter after a ':' to auto-indent.\nfor i in range(24):\n\tforward(120)\n\tleft(150)\n\tforward(60)\n\tleft(10)\n\npenup()\nleft(90)\nforward(40)\npendown()\nfor i in range(36):\n\tforward(80)\n\tleft(170)`;
+    const indentUnit = '    ';
+    const starter = `# Spaces are used for indentation. Press Enter after a ':' to auto-indent.\nfor i in range(24):\n    forward(120)\n    left(150)\n    forward(60)\n    left(10)\n\npenup()\nleft(90)\nforward(40)\npendown()\nfor i in range(36):\n    forward(80)\n    left(170)`;
     editor.value = starter;
 
     editor.addEventListener('keydown', (event) => {
@@ -230,17 +231,18 @@ TEMPLATE = """
         event.preventDefault();
         const start = editor.selectionStart;
         const end = editor.selectionEnd;
-        editor.value = editor.value.substring(0, start) + '\t' + editor.value.substring(end);
-        editor.selectionStart = editor.selectionEnd = start + 1;
+        editor.value = editor.value.substring(0, start) + indentUnit + editor.value.substring(end);
+        const cursor = start + indentUnit.length;
+        editor.selectionStart = editor.selectionEnd = cursor;
       } else if (event.key === 'Enter') {
         event.preventDefault();
         const start = editor.selectionStart;
         const before = editor.value.substring(0, start);
         const currentLineStart = before.lastIndexOf('\n') + 1;
         const line = before.substring(currentLineStart);
-        const baseIndent = line.match(/^[\t ]*/)[0];
+        const baseIndent = line.match(/^[\t ]*/)[0].replace(/\t/g, indentUnit);
         const needsExtra = line.trimEnd().endsWith(':');
-        const indent = baseIndent + (needsExtra ? '\t' : '');
+        const indent = baseIndent + (needsExtra ? indentUnit : '');
         const insertion = '\n' + indent;
         const after = editor.value.substring(editor.selectionEnd);
         editor.value = before + insertion + after;
@@ -265,10 +267,11 @@ TEMPLATE = """
       downloadBtn.hidden = true;
       revokePesUrl();
       try {
+        const code = editor.value.replace(/\t/g, indentUnit);
         const response = await fetch('/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: editor.value })
+          body: JSON.stringify({ code })
         });
         const data = await response.json();
         if (data.error) {
@@ -313,7 +316,7 @@ def index():
 @app.route("/run", methods=["POST"])
 def run_code():
     payload = request.get_json(force=True)
-    source = payload.get("code", "")
+    source = (payload.get("code", "") or "").expandtabs(4)
 
     t = TurtleEmbroidery(color="#00aa55", step=1.5)
     env = {
